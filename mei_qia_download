@@ -1,0 +1,143 @@
+import tkinter as tk  # 使用Tkinter前需要先导入
+from urllib import request
+import urllib.parse
+import json
+import pandas as pd
+import datetime
+import time
+import openpyxl
+
+# 第1步，实例化object，建立窗口window
+window = tk.Tk()
+
+# 第2步，给窗口的可视化起名字
+window.title('My Window')
+
+# 第3步，设定窗口的大小(长 * 宽)
+window.geometry('500x300')  # 这里的乘是小x
+
+
+
+# 第4步，在图形界面上设定输入框控件entry并放置控件
+tk.Label(window, text='开始日期：', font=('Arial', 14)).place(x=10, y=170)
+tk.Label(window, text='截止日期：', font=('Arial', 14)).place(x=10, y=210)
+
+
+var_usr_name = tk.StringVar()
+var_usr_name.set('2019-04-07 00:00:00')
+entry_usr_name = tk.Entry(window, textvariable=var_usr_name, font=('Arial', 14))
+entry_usr_name.place(x=120,y=175)
+# 用户密码
+var_usr_pwd = tk.StringVar()
+var_usr_pwd.set('2019-04-07 23:59:59')
+entry_usr_pwd = tk.Entry(window, textvariable=var_usr_pwd, font=('Arial', 14))
+entry_usr_pwd.place(x=120,y=215)
+
+
+def mian_func():
+    from_tm = var_usr_name.get()
+    to_time = var_usr_pwd.get()
+    header_dict = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko',
+                   'X-App-ID': 'cd25ea078986a47cf0ee473bb0e2d0fa', 'X-Sign': '7c435e0cce8522aefce8df8fa1d96099'}
+
+    try:
+
+        def msg_get(ls, next_page_token, from_tm, to_time):
+
+            url = 'http://api.meiqia.com/v2/conversations?enterprise_id=119377'
+
+            values = {'from_tm': from_tm,
+                      'limit': 20,
+                      'page_token': next_page_token,
+                      'to_tm': to_time}
+            data = urllib.parse.urlencode(values)
+            req = url + '&' + data
+            # print(req)
+
+            req = urllib.request.Request(url=req, headers=header_dict)
+            res = request.urlopen(req)
+            res = res.read()
+
+            res = res.decode(encoding='utf-8')
+            res = json.loads(res)
+            # print(res)
+
+            for i in range(len(res["result"])):
+                ls.append(res["result"][i])
+
+            return res["next_page_token"]
+
+        def string_toDatetime(st):
+            a = datetime.datetime.strptime(st, "%Y-%m-%d %H:%M:%S")
+
+            return (a + datetime.timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S")
+
+        def get_all(ls, next_page_token, from_tm, end_tm):
+            next_page_token = msg_get(ls, next_page_token, from_tm, end_tm)
+            while next_page_token:
+                # print(next_page_token)
+                next_page_token = msg_get(ls, next_page_token, from_tm, end_tm)
+                time.sleep(0.5)
+
+        def conv_content(conv_cont):
+            lis = []
+            for i in range(len(conv_cont)):
+
+                for key in conv_cont[i]:
+                    # print(a[conv_cont][key])
+                    lis.append(conv_cont[i][key])
+                lis.append("----------")
+            # print(lis)
+            return lis
+
+        ls = []
+        next_page_token = ''
+        end_tm = string_toDatetime(from_tm)
+
+
+        while end_tm < to_time:
+            get_all(ls, next_page_token, from_tm, end_tm)
+            from_tm = end_tm
+            end_tm = string_toDatetime(end_tm)
+            print("--------------------------------------")
+            print(from_tm)
+            print("--------------------------------------")
+
+        else:
+            print("less than 12hours")
+            get_all(ls, next_page_token, from_tm, to_time)
+        df = pd.DataFrame(ls)
+
+        # print(df)
+
+        df['conv_content'] = df['conv_content'].apply(conv_content)
+
+        # df['client_info']=df['client_info'].apply(conv_content)
+        df = df.drop('agent_account', axis=1)
+        df = df.drop('client_id', axis=1)
+        df = df.drop('comment_content', axis=1)
+        df = df.drop('comment_level', axis=1)
+        df = df.drop('conv_id', axis=1)
+        df = df.drop('conv_quality_grade', axis=1)
+        df = df.drop('enterprise_id', axis=1)
+        df = df.drop('visitor_tags', axis=1)
+
+        df.to_excel("美洽聊天导出记录.xlsx")
+
+
+        window_sign_up = tk.Toplevel(window)
+        window_sign_up.geometry('300x200')
+        window_sign_up.title('下载完成')
+    except:
+
+        window_sign_up = tk.Toplevel(window)
+        window_sign_up.geometry('300x200')
+        window_sign_up.title('下载失败')
+
+btn_login = tk.Button(window, text='下载聊天记录', command=mian_func)
+btn_login.place(x=120, y=240)
+
+
+# 第5步，主窗口循环显示
+window.mainloop()
+
