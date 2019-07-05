@@ -1,0 +1,139 @@
+import pandas as pd
+import numpy as np
+import copy
+
+df0 =pd.read_excel('course.xlsx')
+
+df0=df0.loc[:,['手机号','学习分钟']]
+df0['手机号']=df0['手机号'].apply(pd.to_numeric,errors='coerce').fillna(0)
+
+
+df = pd.read_csv('data.csv')
+
+df['日期'] = pd.to_datetime(df['日期'])   
+df = df.set_index('日期')
+df2 = df['2018-05-14':'2018-05-20']
+#####################设置索引并筛选日期
+df3 = df2['邀请人ID'].value_counts().reset_index()  
+df3.columns = ['ID','邀请人数']
+
+wb2 = pd.read_excel('公司负责人.xlsx')
+
+wb=pd.read_excel('公司id电话.xlsx')
+wb['ID']=wb['ID'].apply(pd.to_numeric,errors='coerce').fillna(0)
+wb= pd.merge(wb,df3,on='ID',how='left')   
+wb=pd.merge(wb,df0,on='手机号',how='left')
+
+wb['是否完成']=np.where(wb.学习分钟>20,'是','否')
+################
+wb.sort_values(['是否完成'],ascending=False)
+
+
+
+a=wb.groupby(wb.公司)['是否完成'].value_counts().unstack()
+
+a.fillna('0')
+wb0=pd.DataFrame({'总人数':wb.是否完成.groupby(wb.公司).count(),'完成':a.fillna('0').是,'未完成':a.fillna('0').否})
+wb0.reindex()
+
+wb_fzr=wb.loc[:,['姓名','是否完成']]
+
+wb_fzr.columns=['负责人','负责人是否完成']
+wb2=pd.merge(wb2,wb_fzr,on='负责人',how='left')
+wb2=pd.merge(wb2,wb0,on='公司',how='left')
+wb2['22']=wb2.完成.div(wb2.总人数)
+wb2['完成率']=wb2.完成.div(wb2.总人数)
+
+wb2.sort_values('负责人是否完成',ascending=False)
+
+
+wb2.to_excel('总表数据.xlsx')
+
+
+wb.to_excel('个人数据.xlsx')
+
+
+
+
+
+ 
+import pandas as pd
+
+import numpy as np
+
+zfb=pd.read_excel('all_file.xlsx',sheet_name='zfb')
+dingdan=pd.read_excel('all_file.xlsx',sheet_name='dingdan')
+app_wx=pd.read_excel('all_file.xlsx',sheet_name='app_wx')
+wx_store=pd.read_excel('all_file.xlsx',sheet_name='wx_store')
+chz=pd.read_excel('all_file.xlsx',sheet_name='chongzhi')
+
+
+def cin(value):
+	a=value.replace('`','')
+	return np.float(a)
+
+def cin2(value):
+	a=value.replace('`','')
+	return a
+wx_store=wx_store[wx_store['交易状态']=='`SUCCESS'].loc[:,['商户订单号','应结订单金额','手续费','交易时间']]
+zfb=zfb[zfb['账务类型']=='交易'].loc[:,['商户订单号','收入（+元）','服务费（元）','入账时间']]
+zfb.columns=['商户订单号','应结订单金额','手续费','交易时间']
+app_wx=app_wx[app_wx['交易状态']=='`SUCCESS'].loc[:,['商户订单号','应结订单金额','手续费','交易时间']]
+app_wx.columns=['商户订单号','应结订单金额','手续费','交易时间']
+dingdan=dingdan[dingdan['实际金额']>0 ]
+
+
+wx_store['转账方式']='微信商城'
+zfb['转账方式']='支付宝'
+
+
+zfb.交易时间=pd.to_datetime(zfb.交易时间)
+
+app_wx['转账方式']='站内微信'
+
+app_wx.应结订单金额=app_wx.应结订单金额.apply(cin)
+app_wx.手续费=app_wx.手续费.apply(cin)
+wx_store.应结订单金额=wx_store.应结订单金额.apply(cin)
+wx_store.手续费=wx_store.手续费.apply(cin)
+wx_store.交易时间=wx_store.交易时间.apply(cin2)
+app_wx.交易时间=app_wx.交易时间.apply(cin2)
+zfb.应结订单金额=zfb.应结订单金额.apply(cin)
+
+app_wx.交易时间=pd.to_datetime(app_wx.交易时间)
+
+wx_store.交易时间=pd.to_datetime(wx_store.交易时间)
+
+#print('微信订单数为%s' %(wx_store['微信支付单号'].count()))
+#print('支付宝订单数为%s' %(zfb['微信支付单号'].count()))
+#print('app内微信订单数为%s' %(app_wx['微信支付单号'].count()))
+
+#for i in range(wx_store.微信支付单号):
+#    wx_store.微信支付单号.iloc[i,0]=wx_store.微信支付单号.iloc[i,0][1:]
+    
+acc=pd.concat([wx_store,zfb,app_wx])
+
+
+acc.商户订单号=acc.商户订单号.apply(cin2)
+
+
+chz['课程名']='充值'
+
+dingdan=dingdan[dingdan.支付方式 != '行点'].loc[:,['订单号','课程名','用户','手机号']]
+chz=chz[chz.平台 != 'IOS'].loc[:,['订单号','课程名','用户','用户手机号']]
+
+
+dingdan.columns=['商户订单号','课程名','用户','手机号']
+
+chz.columns=['商户订单号','课程名','用户','手机号']
+app=pd.concat([dingdan,chz])
+
+
+
+df=pd.merge(app,acc,on='商户订单号',how='outer')
+df['入账金额']=df.应结订单金额-df.手续费
+#df.结算日期=df.交易时间+1
+
+df.sort_values('交易时间',inplace=True)
+df=df.loc[:,['用户','商户订单号','手机号','转账方式','应结订单金额','手续费','入账金额','课程名','交易时间']]
+#df.交易时间=df.交易时间.dt.normalize()
+df.to_excel('2018年12月3日.xlsx',)
