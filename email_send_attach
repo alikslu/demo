@@ -1,0 +1,114 @@
+
+import pandas as pd
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage 
+
+
+
+wb_1 = pd.read_excel('个人数据.xlsx')
+
+
+tol_1=pd.read_excel('总表数据.xlsx')
+
+
+col1 = wb_1[~wb_1['公司'].str.contains('公司') ]
+
+for x in col1:
+    child_wb = wb_1[wb_1['部门'] == x]    #循环，得到每一个地市列表，
+    writer = pd.ExcelWriter('《日经营》学习统计48mins'+x+'.xlsx')
+    tol_1.to_excel(writer,sheet_name='总部学习数据')
+    child_wb.to_excel(writer,index=False,sheet_name=x)
+    writer.save()
+
+
+a = dict(zip(maicor,mail))
+b = dict(zip(maicor,mail2))
+
+
+col2 = wb_1[wb_1['公司'].str.contains('公司') ]
+for x in col2:
+    
+    subject = '《郝珊丽：冠军团队打造三板斧》学习统计41mins'
+    y='《郝珊丽：冠军团队打造三板斧》学习统计41mins'+x+'.xlsx'        
+    
+
+
+    
+    content='''老师，下午好！<p>&nbsp;&nbsp;附件是上周《郝珊丽：冠军团队打造三板斧》的学习数据。希望老师能继续督促伙伴们的学习哦~</p> <p>&nbsp;&nbsp特别申明，
+        本次的数据是最新统计的，如果有人员变动，以及注册手机号不一致的，请在excel中标注，邮件返回，谢谢！</p>
+            <p>&nbsp;&nbsp;另外，本周新课《张晓岚：奇胜营销大战略》也已上线，欢迎大家听完后留言互动！！</p><p>&nbsp;&nbsp;</p>
+
+            <p>希望老师能收到邮件后给与回复，谢谢。</p><p><img src="cid:send_image"></p>
+            
+<p><strong>陆阳</strong>
+            
+<p>上海市虹桥商务区兴虹路168弄花瓣楼A栋</p>
+            <p>Building A, No.168 Xinghong Road, Hongqiao CBD, Shanghai,PRC </p><p>
+M: 17751754536   T: (021) 60260888   www.xdjy100.com '''
+
+
+
+    
+
+    ##########
+    child_wb = wb_1[wb_2['公司'] == x]    #循环，得到每一个地市列表，
+    writer = pd.ExcelWriter('../123/'+y)
+    tol_1.to_excel(writer,sheet_name='分公司学习数据')
+    child_wb.to_excel(writer,index=False,sheet_name=x)
+    writer.save()
+
+
+    
+    sender = 'luyang@xdjy100.com'  
+    
+    smtpserver = 'smtp.263xmail.com'
+    username = 'luyang@xdjy100.com'
+    password = 'a123123123'
+    message = MIMEMultipart()
+        
+    message['Subject'] = Header(subject, 'utf-8')
+
+    message.attach(MIMEText(content, 'html', 'utf-8'))
+    smtp = smtplib.SMTP()
+    smtp.connect('smtp.263xmail.com',25)
+    smtp.login(username, password)
+
+
+    
+   
+    fp=open('picture.gif', 'rb')
+    
+    msgimage=MIMEImage(fp.read())
+    
+
+    msgimage.add_header('Content-ID','<send_image>')
+    message.attach(msgimage)
+    
+
+    jpgpart = MIMEText(fp.read(),'base64', 'utf-8')
+    jpgpart.add_header('Content-Disposition', 'attachment', filename='picture.png')
+    message.attach(jpgpart)
+
+
+    att = MIMEText(open('../123/'+y, 'rb').read(), 'base64', 'utf-8')
+    att["Content-Type"] = 'application/octet-stream'
+    att.add_header('Content-Disposition','attachment',filename=('gbk','',y) )
+    
+    message.attach(att)
+       
+    
+    
+    try:
+        
+        receiver = a.get(x),b.get(x)
+        smtp.sendmail(sender, receiver, message.as_string())
+        
+        print(x+'发送成功')
+        
+
+    except:
+        print(x+'发送失败')
+
